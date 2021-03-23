@@ -21,8 +21,9 @@ public class BookService{
 ### IoC 기능을 하는 Bean들을 담고 있는 컨테이너 (ex) service, repository...
 
 <hr/>
+<hr/>
 
-##Bean
+## Bean
 ### 스프링 IoC 컨테이너가 관리하는 객체 
 ### 장점
 1. 주입으로 의존성관리를 할 수 있다.
