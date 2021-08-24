@@ -122,19 +122,160 @@ gradle에 이 한 줄만 추가해주면 된다.
 
 ##### 2. config
 
+WebClient역시 사용시에 생성해서 사용하는 방법도 있지만, bean으로 등록하는 방법을 사용하였다. 
 
+```java
+@Configuration
+public class WebClientConfig {
 
+	@Bean
+	public ReactorResourceFactory resourceFactory() {
+		ReactorResourceFactory factory = new ReactorResourceFactory();
+		factory.setUseGlobalResources(false);
+		return factory;
+	}
 
+	@Bean
+	public WebClient webClient(){
+		return WebClient.builder()
+			.baseUrl("http://localhost:8080/api/")
+			.build();
+	}
+
+}
+```
+
+`baseUrl`부분에 필요한 주소를 넣어준다. 이 외에도 connection time 공통적인 content-type,   logging 설정 등을 추가할 수 있다. (참고자료 두번째 링크)
 
 
 
 ##### 3. api 호출
 
+```java
+@Service
+@RequiredArgsConstructor
+public class Service{
+    
+     private final WebClient webClient;
+    
+    public SampleDto useWebClient(){
+        
+         SampleDto sampleDto = webClient.get()
+        .uri(uriBuilder -> uriBuilder
+            .path(String.format("/works/%s/omics/analysis/%s/pca", workId, phenotype))
+            .queryParam("screenWidth", pcaRequest.getScreenWidth())
+            .queryParam("screenHeight", pcaRequest.getScreenHeight())
+            .build())
+        .exchange()
+        .flatMap(t->
+            
+            	return t.bodyToMono(SampleDto.class);
+        )
+        .block();
+        
+        
+        return sampleDto;
+    }
+    
+}
+```
+
+GET 방식의 예제이다. 이렇게 하면 `http://localhost:8080/api/sample/sample2/sample3?x=2&y=2` 이런 형식의 api를 호출할 것이고, 
+
+그에 따른 응답이 SampleDto에 담기게 된다. 
+
+
+
+uri 설정 이후에도 Content-Type이나 header 등등을 설정할 수 있다. 
+
+모두 설정한 후에 Http 응답결과를 가져오기 위해서는 `retrieve` 나 `exchange` 를 쓰게 된다. 
+
+이 둘의 차이점은 바로 Response를 처리하냐, 아님 다른 동작을 더 하느냐 인데, retrieve를 사용하게 되면 `bodyToMono(SampleDto.class)` 와 같이 바로 reponse 를 처리할 수 있다. exchange같은 경우 응답을 받아 다른 가공을 한 후 객체로 처리할 수 있다.
+
+exchange같은 경우 memory leak 가능성 때문에 retrieve 사용을 권고 하고 있다는데.. 나같은 경우 중간에 처리할 작업들이 있어 exchange를 사용하였다. 
+
+
+
+POST는 아래와 같은 방식으로 사용한다. 
+
+```java
+@Service
+@RequiredArgsConstructor
+public class Service{
+    
+    private final WebClient webClient;
+    
+    public SampleDto useWebClient(){
+        
+         SampleDto sampleDto = webClient.post()  //post로 변경 
+        .uri("/sample") //query parameter이 없으면 단순 String으로 넣어도 무방하다. 
+        .body(BodyInserters.fromFormData("id", "admin"))
+        .retrieve() 
+        .bodyToMono(SampleDto.class)
+        .block();
+        
+        return sampleDto;
+    }
+    
+}
+```
+
+
+
+Post는 request body에 필요한 정보를 담아가기 때문에 body 부분에 데이터를 넣어주게된다. 
+
+단순 String data를 form-data로 보내는 것이라면 간단히 `BodyInserters.fromFormData().with()...` 를 반복해서 넣어주기만 해도 request가 잘 가게된다. 
+
+Spring 버전이 좀더 높으면 `bodyValue` 도 사용할 수 있는데, 현재 프로젝트에서는 버전이 낮아 사용하지 못하였다...
+
+
+
+> 이번 프로젝트에서는 파일 전송 부분을 RestTemplete로 구현을 하였는데, 무슨 이유인지는 모르겠지만 파일을 전송하는 경우 attribute를 찾을 수 없다며 계속 오류가 발생하였다. body에 파일을 보낼 때 key부분에 맞는 값을 잘 넣어줬는데도 불구하고.. 계속...
+>
+>  개인적으로 spring끼리 전송 테스트를 했을 때는 파일을 잘 주고 받아서 문제 없겠다 싶었는데, webClient와 외부 api 통신의 무엇인가가 잘 안맞았던 것 같다
+>
+> 개인적으로 이부분이 좀 아쉬웠다... 
+
+
+
 ##### 4. 에러처리
 
+```java
+@Service
+@RequiredArgsConstructor
+public class Service{
+    
+    private final WebClient webClient;
+    
+    public SampleDto useWebClient(){
+        
+         SampleDto sampleDto = webClient.get()
+        .uri(uriBuilder -> uriBuilder
+            .path(String.format("/sample/%s/%s", sample2, sample3))
+            .queryParam("x", pcaRequest.getScreenWidth())
+            .queryParam("y", pcaRequest.getScreenHeight())
+            .build())
+        .retrieve() 
+        .bodyToMono(SampleDto.class)
+        .onStatus(status -> status.is4xxClientError() 
+                          || status.is5xxServerError()
+             , clientResponse ->
+                           clientResponse.bodyToMono(String.class)
+                           .map(body -> new RuntimeException(body)))
+        .block();
+        
+      
+        return sampleDto;
+    }
+    
+}
+```
+
+webClient는 각 요청마다 에러처리를 해야한다. `retrieve`라면 위의 예제 코드와 같이 `onStatus` 에 필요한 로직을 넣어준다. (참고자료 맨 밑 링크 참고 )
 
 
 
+*exchange의 예외처리는 Spring에서 외부 API 호출하기 3 WebClient-활용편에서 다루겠습니다.* 
 
 
 
@@ -149,3 +290,5 @@ Reactcive programing  : https://brunch.co.kr/@springboot/152 (시리즈 다 읽�
 webFlux 참고 : https://devuna.tistory.com/108
 
 Flux와 Mono 참고 : https://devuna.tistory.com/120
+
+webClient 좋은 참고 : https://medium.com/@odysseymoon/spring-webclient-%EC%82%AC%EC%9A%A9%EB%B2%95-5f92d295edc0
