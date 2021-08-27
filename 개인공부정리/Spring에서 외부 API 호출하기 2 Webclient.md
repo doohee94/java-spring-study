@@ -162,15 +162,12 @@ public class Service{
         
          SampleDto sampleDto = webClient.get()
         .uri(uriBuilder -> uriBuilder
-            .path(String.format("/works/%s/omics/analysis/%s/pca", workId, phenotype))
-            .queryParam("screenWidth", pcaRequest.getScreenWidth())
-            .queryParam("screenHeight", pcaRequest.getScreenHeight())
+            .path(String.format("/sample/sample2/sample3"))
+            .queryParam("x", 2)
+            .queryParam("y", 3)
             .build())
-        .exchange()
-        .flatMap(t->
-            
-            	return t.bodyToMono(SampleDto.class);
-        )
+    	.retrieve() 
+        .bodyToMono(SampleDto.class)
         .block();
         
         
