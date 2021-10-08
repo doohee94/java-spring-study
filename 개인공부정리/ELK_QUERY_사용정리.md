@@ -1,4 +1,4 @@
-## ELK - SNV 정리
+# ELK query 사용 정리
 
 - java heap memory 늘리기
 
