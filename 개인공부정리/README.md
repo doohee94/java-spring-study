@@ -13,6 +13,7 @@
 - ELK_Security설정
 - POSTGRES to LOGSTASH
 - SpringElasticsearch 연동 1- Spring 설정
+- SpringElasticsearch 연동 2 - Query 작성
 
 #### 2. JPA
 
@@ -28,6 +29,6 @@
 #### 4. 기타 
 
 - ENUM 리팩토링 과정
-
+- Spring Bulk Insert 어떻게 해결했을까 - JdbcTemplate
 
 
