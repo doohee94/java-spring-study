@@ -31,4 +31,4 @@
 - ENUM 리팩토링 과정
 - Spring Bulk Insert 어떻게 해결했을까 - JdbcTemplate
 
-
+- 특정 API만 swagger에 노출
